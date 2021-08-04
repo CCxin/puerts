@@ -36,7 +36,7 @@ git apply --cached $GITHUB_WORKSPACE/v8-build/patch/builtins-puerts.patch
 git checkout -- .
 
 echo "=====[ Building V8 ]====="
-python ./tools/dev/v8gen.py i32.release -vv -- '
+python ./tools/dev/v8gen.py ia32.release -vv -- '
 target_os = "android"
 target_cpu = "x86"
 is_debug = false
@@ -52,13 +52,13 @@ use_custom_libcxx=false
 use_custom_libcxx_for_host=true
 v8_enable_pointer_compression=false
 '
-ninja -C out.gn/i32.release -t clean
-ninja -C out.gn/i32.release wee8
-third_party/android_ndk/toolchains/x86-4.9/prebuilt/linux-x86_64/i686-linux-android/bin/strip -g -S -d --strip-debug --verbose out.gn/i32.release/obj/libwee8.a
+ninja -C out.gn/ia32.release -t clean
+ninja -C out.gn/ia32.release wee8
+third_party/android_ndk/toolchains/x86-4.9/prebuilt/linux-x86_64/i686-linux-android/bin/strip -g -S -d --strip-debug --verbose out.gn/ia32.release/obj/libwee8.a
 
-node $GITHUB_WORKSPACE/v8-build/genBlobHeader.js "android x86" out.gn/i32.release/snapshot_blob.bin
+node $GITHUB_WORKSPACE/v8-build/genBlobHeader.js "android x86" out.gn/ia32.release/snapshot_blob.bin
 
 mkdir -p output/v8/Lib/Android/x86
-cp out.gn/i32.release/obj/libwee8.a output/v8/Lib/Android/x86/
+cp out.gn/ia32.release/obj/libwee8.a output/v8/Lib/Android/x86/
 mkdir -p output/v8/Inc/Blob/Android/x86
 cp SnapshotBlob.h output/v8/Inc/Blob/Android/x86/
