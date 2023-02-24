@@ -143,7 +143,7 @@ if ( MSYS OR WIN32 )
     target_compile_definitions (puerts PRIVATE PLATFORM_WINDOWS)
 
 elseif ( ANDROID )
-
+	target_compile_definitions (puerts PRIVATE WITH_INSPECTOR)
     find_library(log-lib log)
     target_link_libraries(puerts
         ${log-lib}
