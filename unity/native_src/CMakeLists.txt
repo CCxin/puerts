@@ -350,7 +350,7 @@ elseif ( OHOS )
         list(APPEND PUERTS_COMPILE_DEFINITIONS PLATFORM_OHOS_x64)
     endif ()
 elseif ( ANDROID )
-
+target_compile_definitions (puerts PRIVATE WITH_INSPECTOR)
     find_library(log-lib log)
     target_link_libraries(puerts
         ${log-lib}
