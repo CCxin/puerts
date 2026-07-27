@@ -1,0 +1,193 @@
+name: unity build PapiV8 with WebAssembly
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  V8_REVISION: 13.6.233.17
+  BACKEND_V8_COMMIT: 0529858a60c46e35e99eeca757ace04141676e0b
+
+jobs:
+  android:
+    name: Android ${{ matrix.abi }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: armv7
+            abi: armeabi-v7a
+            script: android_armv7.sh
+            gn_output: arm.release
+          - arch: arm64
+            abi: arm64-v8a
+            script: android_armv8.sh
+            gn_output: arm64.release
+
+    steps:
+      - name: Checkout PuerTS
+        uses: actions/checkout@v4
+        with:
+          path: puerts
+
+      - name: Checkout pinned backend-v8
+        uses: actions/checkout@v4
+        with:
+          repository: puerts/backend-v8
+          ref: ${{ env.BACKEND_V8_COMMIT }}
+          path: backend-v8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Enable WebAssembly in backend-v8
+        run: |
+          node puerts/.github/scripts/enable-backend-v8-wasm.mjs backend-v8
+
+      - name: Build V8
+        working-directory: backend-v8
+        run: |
+          npm ci
+          BACKEND_V8_ROOT="$PWD"
+          GITHUB_WORKSPACE="$BACKEND_V8_ROOT" bash "./${{ matrix.script }}" "$V8_REVISION"
+
+      - name: Verify V8 configuration
+        run: |
+          grep -Eq 'v8_enable_webassembly[[:space:]]*=[[:space:]]*true' \
+            "$HOME/v8/v8/out.gn/${{ matrix.gn_output }}/args.gn"
+          test -f "$HOME/v8/v8/output/v8/Lib/Android/${{ matrix.abi }}/libwee8.a"
+
+      - name: Install Android NDK r27d
+        run: |
+          cd "$HOME"
+          curl --fail --location --retry 3 \
+            --output android-ndk-r27d.zip \
+            https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+          unzip -q android-ndk-r27d.zip
+
+      - name: Prepare custom backend
+        run: |
+          BACKEND_DIR="$GITHUB_WORKSPACE/puerts/unity/native/papi-v8/.backends/papi-v8"
+          mkdir -p "$BACKEND_DIR/Inc"
+          cp -a "$HOME/v8/v8/output/v8/." "$BACKEND_DIR/"
+          cp -a "$HOME/v8/v8/include/." "$BACKEND_DIR/Inc/"
+
+      - name: Build PapiV8
+        working-directory: puerts/unity
+        run: |
+          npm ci
+          cd native/papi-v8
+          ANDROID_NDK="$HOME/android-ndk-r27d" node ../../cli make \
+            --platform android \
+            --arch "${{ matrix.arch }}" \
+            --config Release \
+            --websocket 1 \
+            --with_inspector
+
+      - name: Verify PapiV8
+        run: |
+          test -f "puerts/unity/upms/v8/Plugins/Android/libs/${{ matrix.abi }}/libPapiV8.so"
+
+      - name: Upload PapiV8
+        uses: actions/upload-artifact@v4
+        with:
+          name: PapiV8-wasm-android-${{ matrix.abi }}
+          path: puerts/unity/upms/v8/Plugins/Android/libs/${{ matrix.abi }}/libPapiV8.so
+          if-no-files-found: error
+
+  windows:
+    name: Windows x86_64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout PuerTS
+        uses: actions/checkout@v4
+        with:
+          path: puerts
+
+      - name: Checkout pinned backend-v8
+        uses: actions/checkout@v4
+        with:
+          repository: puerts/backend-v8
+          ref: ${{ env.BACKEND_V8_COMMIT }}
+          path: backend-v8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Enable WebAssembly in backend-v8
+        shell: pwsh
+        run: node puerts/.github/scripts/enable-backend-v8-wasm.mjs backend-v8
+
+      - name: Build V8
+        shell: cmd
+        working-directory: backend-v8
+        run: |
+          call npm ci
+          set "GITHUB_WORKSPACE=%CD%"
+          call windows_64.cmd %V8_REVISION%
+
+      - name: Verify V8 configuration
+        shell: pwsh
+        run: |
+          $argsFile = Join-Path $env:USERPROFILE "v8\v8\out.gn\x64.release\args.gn"
+          if (-not (Select-String -Path $argsFile -Pattern 'v8_enable_webassembly\s*=\s*true')) {
+              throw "WebAssembly is not enabled in $argsFile"
+          }
+          $wee8 = Join-Path $env:USERPROFILE "v8\v8\output\v8\Lib\Win64\wee8.lib"
+          if (-not (Test-Path -LiteralPath $wee8)) {
+              throw "Missing $wee8"
+          }
+
+      - name: Prepare custom backend
+        shell: pwsh
+        run: |
+          $backendDir = Join-Path $env:GITHUB_WORKSPACE "puerts\unity\native\papi-v8\.backends\papi-v8"
+          New-Item -ItemType Directory -Force -Path (Join-Path $backendDir "Inc") | Out-Null
+          Copy-Item -Recurse -Force `
+            (Join-Path $env:USERPROFILE "v8\v8\output\v8\*") `
+            $backendDir
+          Copy-Item -Recurse -Force `
+            (Join-Path $env:USERPROFILE "v8\v8\include\*") `
+            (Join-Path $backendDir "Inc")
+
+      - name: Build PapiV8
+        shell: pwsh
+        working-directory: puerts/unity
+        run: |
+          npm ci
+          Set-Location native/papi-v8
+          node ../../cli make `
+            --platform win `
+            --arch x64 `
+            --config Release `
+            --websocket 1 `
+            --with_inspector
+
+      - name: Verify PapiV8
+        shell: pwsh
+        run: |
+          $papi = "puerts\unity\upms\v8\Plugins\x86_64\PapiV8.dll"
+          if (-not (Test-Path -LiteralPath $papi)) {
+              throw "Missing $papi"
+          }
+
+      - name: Upload PapiV8
+        uses: actions/upload-artifact@v4
+        with:
+          name: PapiV8-wasm-windows-x86_64
+          path: puerts/unity/upms/v8/Plugins/x86_64/PapiV8.dll
+          if-no-files-found: error
