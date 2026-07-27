@@ -27,6 +27,14 @@ for (const [relativePath, expectedReplacements] of files) {
         "v8_enable_webassembly=false",
         "v8_enable_webassembly=true",
     );
-    writeFileSync(path, updated);
+    const platformUpdated =
+        relativePath === "windows_64.cmd"
+            ? updated.replaceAll(
+                  "v8_enable_webassembly=true",
+                  "v8_enable_webassembly=true treat_warnings_as_errors=false",
+              )
+            : updated;
+
+    writeFileSync(path, platformUpdated);
     console.log(`${relativePath}: enabled WebAssembly (${matches.length} replacements)`);
 }

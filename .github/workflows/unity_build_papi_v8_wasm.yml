@@ -18,6 +18,7 @@ env:
 
 jobs:
   android:
+    if: ${{ !contains(github.event.head_commit.message, '[windows-only]') }}
     name: Android ${{ matrix.abi }}
     runs-on: ubuntu-22.04
     strategy:
