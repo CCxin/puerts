@@ -2,6 +2,12 @@ name: unity build PapiV8 with WebAssembly
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/wasm-v8-3.0.2
+    paths:
+      - .github/scripts/enable-backend-v8-wasm.mjs
+      - .github/workflows/unity_build_papi_v8_wasm.yml
 
 permissions:
   contents: read
@@ -88,9 +94,7 @@ jobs:
           ANDROID_NDK="$HOME/android-ndk-r27d" node ../../cli make \
             --platform android \
             --arch "${{ matrix.arch }}" \
-            --config Release \
-            --websocket 1 \
-            --with_inspector
+            --config Release
 
       - name: Verify PapiV8
         run: |
@@ -173,9 +177,7 @@ jobs:
           node ../../cli make `
             --platform win `
             --arch x64 `
-            --config Release `
-            --websocket 1 `
-            --with_inspector
+            --config Release
 
       - name: Verify PapiV8
         shell: pwsh
