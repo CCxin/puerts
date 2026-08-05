@@ -108,7 +108,6 @@ jobs:
             --platform android \
             --arch "${{ matrix.arch }}" \
             --config Release \
-            --websocket 1 \
             --with_inspector
 
       - name: Verify PapiV8
