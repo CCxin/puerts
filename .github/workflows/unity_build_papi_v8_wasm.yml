@@ -62,7 +62,7 @@ jobs:
 
       - name: Restore V8 build cache
         id: v8-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/v8/v8/output/v8
@@ -83,6 +83,16 @@ jobs:
           grep -Eq 'v8_enable_webassembly[[:space:]]*=[[:space:]]*true' \
             "$HOME/v8/v8/out.gn/${{ matrix.gn_output }}/args.gn"
           test -f "$HOME/v8/v8/output/v8/Lib/Android/${{ matrix.abi }}/libwee8.a"
+
+      - name: Save V8 build cache
+        if: steps.v8-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/v8/v8/output/v8
+            ~/v8/v8/include
+            ~/v8/v8/out.gn/${{ matrix.gn_output }}/args.gn
+          key: v8-wasm-${{ runner.os }}-${{ matrix.abi }}-${{ env.V8_REVISION }}-${{ env.BACKEND_V8_COMMIT }}-${{ hashFiles('puerts/.github/scripts/enable-backend-v8-wasm.mjs') }}
 
       - name: Install Android NDK r27d
         run: |
@@ -152,7 +162,7 @@ jobs:
 
       - name: Restore V8 build cache
         id: v8-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/v8/v8/output/v8
@@ -180,6 +190,16 @@ jobs:
           if (-not (Test-Path -LiteralPath $wee8)) {
               throw "Missing $wee8"
           }
+
+      - name: Save V8 build cache
+        if: steps.v8-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/v8/v8/output/v8
+            ~/v8/v8/include
+            ~/v8/v8/out.gn/x64.release/args.gn
+          key: v8-wasm-${{ runner.os }}-x86_64-${{ env.V8_REVISION }}-${{ env.BACKEND_V8_COMMIT }}-${{ hashFiles('puerts/.github/scripts/enable-backend-v8-wasm.mjs') }}
 
       - name: Prepare custom backend
         shell: pwsh
