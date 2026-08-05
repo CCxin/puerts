@@ -96,7 +96,9 @@ jobs:
           ANDROID_NDK="$HOME/android-ndk-r27d" node ../../cli make \
             --platform android \
             --arch "${{ matrix.arch }}" \
-            --config Release
+            --config Release \
+            --websocket 1 \
+            --with_inspector
 
       - name: Verify PapiV8
         run: |
