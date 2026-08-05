@@ -13,6 +13,7 @@ permissions:
   contents: read
 
 env:
+  # Keep the Android artifact aligned with the inspector-enabled PapiV8 build flags below.
   V8_REVISION: 13.6.233.17
   BACKEND_V8_COMMIT: 0529858a60c46e35e99eeca757ace04141676e0b
 
